@@ -1,0 +1,182 @@
+[
+  {
+    "question": "请解释HashMap的底层原理，JDK8做了哪些优化？",
+    "category": "集合框架",
+    "excellent_answer": "HashMap在JDK8中采用数组+链表+红黑树的数据结构。数组是HashMap的主体，每个数组元素是一个Node节点。当发生哈希冲突时，冲突的元素会以链表形式存储。当链表长度达到8且数组长度达到64时，链表会转化为红黑树，将查找时间复杂度从O(n)降低到O(logn)。\n\n相比JDK7，JDK8主要做了以下优化：\n1. 引入红黑树，解决了哈希冲突严重时链表过长导致的性能退化问题。\n2. 链表插入方式从头插法改为尾插法，解决了多线程扩容时可能出现的环形链表导致死循环问题。\n3. hash函数简化：将hashCode的高16位与低16位异或，既减少了运算量又保证了散列均匀性。\n4. 扩容时元素的新位置要么在原位置，要么在原位置+旧容量的位置，通过位运算高效判断，不需要重新计算hash值。",
+    "key_points": [
+      "数组+链表+红黑树结构",
+      "链表转红黑树的条件：长度>=8且数组>=64",
+      "JDK8尾插法解决环形链表问题",
+      "hash函数优化：高低16位异或",
+      "扩容优化：原位置或原位置+旧容量"
+    ],
+    "common_mistakes": [
+      "只说数组+链表，忘记红黑树",
+      "不知道转红黑树还需要数组长度>=64的条件",
+      "不了解JDK7头插法导致死循环的问题",
+      "把HashMap说成线程安全的"
+    ]
+  },
+  {
+    "question": "Spring IOC的原理是什么？如何解决循环依赖？",
+    "category": "Spring/SpringBoot",
+    "excellent_answer": "Spring IOC即控制反转，核心思想是将对象的创建和依赖关系管理交给Spring容器，而不是由程序员手动管理。Spring通过DI（依赖注入）实现IOC，支持构造器注入、Setter注入和字段注入。\n\n容器启动时，会读取配置信息生成BeanDefinition，然后根据BeanDefinition进行Bean的实例化、属性填充和初始化。对于单例Bean，实例化后会放入单例池中缓存。\n\n关于循环依赖，Spring通过三级缓存来解决：\n- 一级缓存（singletonObjects）：存放完全初始化好的Bean\n- 二级缓存（earlySingletonObjects）：存放提前暴露的Bean实例（可能是代理对象）\n- 三级缓存（singletonFactories）：存放Bean的ObjectFactory\n\n解决过程以A依赖B、B依赖A为例：创建A时先将A的ObjectFactory放入三级缓存，然后填充属性发现需要B。创建B时同样放入三级缓存，填充属性发现需要A，此时从三级缓存获取A的ObjectFactory生成早期引用（如果需要AOP则返回代理对象），放入二级缓存。B完成初始化放入一级缓存，A获取到B后也完成初始化。\n\n需要注意的是，构造器注入的循环依赖无法解决，因为实例化阶段就需要依赖对象，此时还无法放入缓存。可以通过@Lazy注解延迟加载来解决。",
+    "key_points": [
+      "IOC是控制反转，DI是实现方式",
+      "三级缓存的具体作用",
+      "循环依赖的完整解决过程",
+      "构造器注入的循环依赖无法解决",
+      "三级缓存存在的意义是延迟决定是否创建代理"
+    ],
+    "common_mistakes": [
+      "把IOC和DI混为一谈",
+      "只知道三级缓存的名字但不知道为什么需要三级",
+      "不知道构造器注入无法解决循环依赖",
+      "不理解为什么二级缓存不够，还需要三级缓存"
+    ]
+  },
+  {
+    "question": "MySQL的MVCC是怎么实现的？",
+    "category": "MySQL",
+    "excellent_answer": "MVCC即多版本并发控制，是MySQL InnoDB引擎在RR和RC隔离级别下实现非阻塞读的机制，使得读操作不用加锁就能获取一致性数据。\n\nMVCC依赖三个核心组件：\n\n1. 隐藏字段：每行记录都有DB_TRX_ID（最后修改的事务ID）和DB_ROLL_PTR（指向undo log中上一个版本的指针）。\n\n2. Undo Log版本链：每次更新操作都会把旧版本写入undo log，并通过回滚指针串成一条版本链。\n\n3. Read View：在进行快照读时生成，包含当前活跃事务ID列表（m_ids）、最小活跃事务ID（min_trx_id）、下一个将分配的事务ID（max_trx_id）等信息。\n\n可见性判断规则：从版本链最新版本开始，检查该版本的trx_id。如果trx_id小于min_trx_id，说明该事务已提交，可见。如果trx_id大于等于max_trx_id，说明该事务在Read View之后开启，不可见。如果trx_id在min和max之间，则判断是否在m_ids中，在则不可见（未提交），不在则可见（已提交）。不可见则沿版本链继续往下找。\n\nRC和RR的区别在于Read View的生成时机：RC在每次SELECT时都生成新的Read View，所以能看到其他事务已提交的最新数据。RR只在事务第一次SELECT时生成，之后复用，所以整个事务中看到的数据是一致的。",
+    "key_points": [
+      "MVCC的三个核心组件：隐藏字段、undo log版本链、Read View",
+      "Read View的四个关键字段",
+      "完整的可见性判断规则",
+      "RC和RR中Read View生成时机的区别",
+      "快照读和当前读的区别"
+    ],
+    "common_mistakes": [
+      "只说了MVCC的概念但不知道具体实现",
+      "不清楚Read View的可见性判断规则",
+      "混淆快照读和当前读",
+      "不知道RC和RR的区别在于Read View的生成时机"
+    ]
+  },
+  {
+    "question": "线程池的核心参数有哪些？如何合理配置线程池？",
+    "category": "多线程与并发",
+    "excellent_answer": "线程池ThreadPoolExecutor有7个核心参数：\n\n1. corePoolSize（核心线程数）：线程池中常驻的线程数量，即使空闲也不会被回收（除非设置了allowCoreThreadTimeOut）。\n2. maximumPoolSize（最大线程数）：线程池允许创建的最大线程数量。\n3. keepAliveTime（空闲存活时间）：非核心线程的空闲存活时间。\n4. unit（时间单位）：keepAliveTime的单位。\n5. workQueue（工作队列）：存放待执行任务的阻塞队列。\n6. threadFactory（线程工厂）：创建线程的工厂，可自定义线程名称。\n7. handler（拒绝策略）：队列满且线程数达到最大时的处理策略。\n\n任务提交执行流程：提交任务时先判断核心线程是否已满，未满则创建核心线程执行。已满则放入工作队列，队列满则创建非核心线程，达到最大线程数仍然放不下则执行拒绝策略。\n\n四种拒绝策略：AbortPolicy（抛异常，默认）、CallerRunsPolicy（调用者线程执行）、DiscardPolicy（直接丢弃）、DiscardOldestPolicy（丢弃最早的任务）。\n\n配置建议：\n- CPU密集型任务：核心线程数 = CPU核心数 + 1，队列可以较短\n- IO密集型任务：核心线程数 = CPU核心数 * 2 或 CPU核心数 / (1 - 阻塞系数)，队列适当长\n- 实际生产中建议通过压测来确定最优参数\n- 不推荐使用Executors创建线程池（FixedThreadPool和SingleThreadPool队列无界可能OOM，CachedThreadPool最大线程数无限可能创建过多线程）",
+    "key_points": [
+      "7个核心参数及其作用",
+      "任务提交的完整执行流程",
+      "4种拒绝策略",
+      "CPU密集型和IO密集型的配置差异",
+      "不推荐使用Executors的原因"
+    ],
+    "common_mistakes": [
+      "漏掉某些参数（常忘threadFactory和handler）",
+      "执行流程顺序说错（先入队再创建非核心线程）",
+      "不知道为什么不推荐使用Executors",
+      "配置参数凭感觉，不知道理论依据"
+    ]
+  },
+  {
+    "question": "缓存穿透、缓存击穿和缓存雪崩的区别和解决方案？",
+    "category": "Redis",
+    "excellent_answer": "这三个是缓存使用中最常见的问题：\n\n**缓存穿透**：查询一个一定不存在的数据，每次请求都绕过缓存直接查数据库。通常是恶意攻击或数据被删除。解决方案有三种：一是使用布隆过滤器在缓存前过滤，将所有合法key的哈希值存入布隆过滤器，不存在的key直接拦截；二是对查询结果为空也进行缓存，设置较短的过期时间（如5分钟），防止同一个不存在的key反复查库；三是在接口层做参数合法性校验。\n\n**缓存击穿**：某个热点key在过期的一瞬间，大量并发请求同时到来，全部打到数据库。注意这里是单个热点key的问题。解决方案：一是使用互斥锁（Redis的SETNX），只允许一个线程查库回写缓存，其他线程自旋等待后从缓存读取；二是设置逻辑过期，不给key设TTL，而是在value中维护过期时间，发现逻辑过期后异步更新缓存，旧数据在更新完成前仍然可用；三是对超级热点数据设置永不过期。\n\n**缓存雪崩**：大量key同时过期，或者Redis服务宕机，导致大量请求同时打到数据库。解决方案：一是在设置过期时间时加上随机值，将过期时间打散；二是使用Redis集群保证高可用（主从+哨兵或Redis Cluster）；三是使用多级缓存架构，本地缓存（如Caffeine）作为一级缓存，Redis作为二级缓存；四是通过限流降级保护数据库。\n\n三者的区别简单总结：穿透是查不存在的数据，击穿是单个热点key过期，雪崩是大量key同时过期或Redis宕机。",
+    "key_points": [
+      "三个概念的准确区分",
+      "每种问题对应多种解决方案",
+      "布隆过滤器的原理和适用性",
+      "互斥锁和逻辑过期两种击穿解决方案的对比",
+      "雪崩的两种原因：大量key过期和Redis宕机"
+    ],
+    "common_mistakes": [
+      "三个概念混淆，分不清区别",
+      "只知道一种解决方案",
+      "不知道布隆过滤器的原理（有误判率但无漏判）",
+      "没有提到多级缓存架构"
+    ]
+  },
+  {
+    "question": "JVM垃圾回收机制是怎样的？CMS和G1有什么区别？",
+    "category": "JVM",
+    "excellent_answer": "JVM垃圾回收主要包括判定对象是否可回收、垃圾回收算法和垃圾收集器三个方面。\n\n判定算法主要是可达性分析：从GC Roots出发，沿引用链遍历，不可达的对象即为垃圾。GC Roots包括：虚拟机栈中引用的对象、方法区中静态变量和常量引用的对象、本地方法栈中JNI引用的对象等。\n\n基础回收算法有：标记-清除（碎片问题）、标记-复制（空间浪费）、标记-整理（效率较低）。现代收集器通常采用分代收集思想，年轻代用复制算法（Eden+两个Survivor），老年代用标记-清除或标记-整理。\n\nCMS（Concurrent Mark Sweep）收集器：\n- 目标：最短停顿时间\n- 算法：标记-清除\n- 过程：初始标记（STW，很快）→ 并发标记 → 重新标记（STW）→ 并发清除\n- 缺点：CPU敏感、浮动垃圾、内存碎片\n\nG1（Garbage-First）收集器：\n- 目标：可预测的停顿时间（通过-XX:MaxGCPauseMillis设置）\n- 算法：整体标记-整理，局部标记-复制\n- 将堆划分为大小相等的Region，不再严格区分年轻代和老年代\n- 过程：初始标记 → 并发标记 → 最终标记 → 筛选回收（根据回收价值优先回收价值高的Region）\n- 优点：无内存碎片、可预测停顿、适合大内存\n\n主要区别：CMS使用标记-清除有碎片，G1使用Region无碎片。CMS无法预测停顿时间，G1可以设置目标停顿。G1适合大堆（6GB以上），CMS适合中小堆。JDK9后G1成为默认收集器，CMS已被标记废弃。",
+    "key_points": [
+      "可达性分析和GC Roots",
+      "三种基本回收算法及优缺点",
+      "CMS的四个阶段和缺点",
+      "G1的Region概念和可预测停顿",
+      "两者的核心区别和适用场景"
+    ],
+    "common_mistakes": [
+      "不知道GC Roots包含哪些",
+      "CMS的四个阶段说不清",
+      "不了解G1的Region机制",
+      "不知道JDK9后默认收集器是G1"
+    ]
+  },
+  {
+    "question": "Spring事务传播行为有哪些？事务什么时候会失效？",
+    "category": "Spring/SpringBoot",
+    "excellent_answer": "Spring定义了7种事务传播行为，最常用的是前两种：\n\n1. REQUIRED（默认）：如果当前存在事务则加入，没有则新建。这是最常用的传播行为。\n2. REQUIRES_NEW：无论当前是否有事务，都新建一个事务，当前事务会被挂起。适用于日志记录等不受主事务影响的操作。\n3. SUPPORTS：有事务就加入，没有就以非事务方式运行。\n4. NOT_SUPPORTED：以非事务方式运行，如果有当前事务则挂起。\n5. MANDATORY：必须在事务中运行，否则抛异常。\n6. NEVER：必须在非事务中运行，有事务则抛异常。\n7. NESTED：如果存在事务，则在嵌套事务中运行（使用保存点savepoint），嵌套事务回滚不影响外层事务。\n\n事务失效的常见场景：\n1. 方法不是public的：Spring AOP默认只能代理public方法。如果@Transactional标注在非public方法上，事务不生效。\n2. 自调用问题：同一个类中方法A调用方法B，即使B有@Transactional注解也不生效，因为调用没有经过代理对象。解决方案：注入自身、使用AopContext.currentProxy()或拆分到不同类。\n3. 异常被catch了：方法内部catch了异常但没有重新抛出，事务管理器感知不到异常就不会回滚。\n4. 异常类型不对：@Transactional默认只对RuntimeException和Error回滚，如果抛出的是受检异常（如IOException），不会回滚。需要设置rollbackFor=Exception.class。\n5. 数据库引擎不支持事务：如MySQL的MyISAM引擎。\n6. Bean没有被Spring管理：如果类没有注册为Spring Bean，AOP不生效。\n7. 传播行为设置不当：比如设置为NOT_SUPPORTED就会以非事务运行。",
+    "key_points": [
+      "7种传播行为及其含义",
+      "REQUIRED和REQUIRES_NEW的区别（最常考）",
+      "NESTED使用保存点的特性",
+      "至少5种事务失效场景",
+      "自调用问题的原因和解决方案"
+    ],
+    "common_mistakes": [
+      "只知道REQUIRED一种传播行为",
+      "不了解事务失效的场景",
+      "不理解自调用问题的根本原因是没经过代理",
+      "不知道默认只回滚RuntimeException"
+    ]
+  },
+  {
+    "question": "TCP三次握手和四次挥手的过程？为什么不能两次握手？",
+    "category": "计算机网络",
+    "excellent_answer": "三次握手过程：\n1. 客户端发送SYN报文（SYN=1，seq=x），进入SYN_SENT状态。\n2. 服务器收到后回复SYN+ACK报文（SYN=1，ACK=1，seq=y，ack=x+1），进入SYN_RCVD状态。\n3. 客户端收到后发送ACK报文（ACK=1，seq=x+1，ack=y+1），双方进入ESTABLISHED状态。\n\n四次挥手过程：\n1. 客户端发送FIN报文（FIN=1，seq=u），进入FIN_WAIT_1状态。\n2. 服务器收到后发送ACK（ack=u+1），进入CLOSE_WAIT状态。客户端收到ACK进入FIN_WAIT_2状态。\n3. 服务器数据发送完毕后发送FIN报文（FIN=1，seq=w），进入LAST_ACK状态。\n4. 客户端收到FIN后发送ACK（ack=w+1），进入TIME_WAIT状态，等待2MSL后关闭。服务器收到ACK后关闭。\n\n为什么不能两次握手：\n两次握手无法防止历史连接的建立。假设客户端发送了一个SYN报文但在网络中延迟了，客户端超时后重发SYN并成功建立连接和关闭。这时如果延迟的旧SYN到达服务器，服务器会误以为是新的连接请求，发送SYN+ACK后就认为连接建立了（两次握手）。但客户端并没有发起新请求，会忽略这个响应，导致服务器白白维护一个无效连接。三次握手中，客户端收到旧连接的SYN+ACK后不会发送第三次ACK，服务器收不到ACK就不会建立连接。\n\n为什么挥手需要四次：\n因为TCP是全双工通信。收到FIN只表示对方不再发送数据，但自己可能还有数据要发。所以收到FIN后先回ACK，等自己的数据发完后再发FIN。如果服务器没有数据要发，也可以将ACK和FIN合并为三次挥手。\n\nTIME_WAIT等待2MSL的原因：\n1. 确保最后一个ACK能到达服务器（如果丢失，服务器会重发FIN）。\n2. 让本次连接的所有报文在网络中消失，避免影响下一个新连接。",
+    "key_points": [
+      "三次握手的完整过程和状态变化",
+      "四次挥手的完整过程",
+      "两次握手的问题：无法防止历史连接",
+      "四次挥手的原因：全双工通信",
+      "TIME_WAIT和2MSL的作用"
+    ],
+    "common_mistakes": [
+      "只背过程不理解原因",
+      "说两次握手不行是因为不可靠（不够准确）",
+      "不知道TIME_WAIT的作用",
+      "不知道四次挥手可以变成三次的情况"
+    ]
+  },
+  {
+    "question": "Redis如何实现分布式锁？Redisson的看门狗机制是什么？",
+    "category": "Redis",
+    "excellent_answer": "Redis分布式锁的基本实现是使用SET命令的NX和EX参数：SET lock_key unique_value NX EX 30。NX保证只有key不存在时才能设置成功（互斥性），EX设置过期时间防止死锁，unique_value使用UUID等唯一标识防止误删其他线程的锁。\n\n释放锁时必须使用Lua脚本保证原子性：先判断value是否为自己设置的，是则删除。不能分成GET和DEL两步，否则可能在判断后、删除前锁过期被其他线程获取，导致误删。\n\n但这个基本方案有一个问题：如果业务执行时间超过锁的过期时间，锁会自动释放，其他线程就能获取锁，导致并发安全问题。\n\nRedisson的看门狗机制解决了这个问题。当使用Redisson加锁时不指定过期时间，Redisson会启动一个watchdog后台线程。默认锁的过期时间是30秒，watchdog每隔10秒（即过期时间的1/3）检查一次，如果持有锁的线程还在运行，就自动将锁的过期时间续期到30秒。当业务执行完成调用unlock时，停止续期并释放锁。如果服务宕机，watchdog线程也会停止，锁会在30秒后自动过期释放，不会造成死锁。\n\nRedisson还提供了更丰富的功能：可重入锁（内部用Hash结构存储线程ID和重入次数）、公平锁（按请求顺序获取）、读写锁（读共享写排他）、联锁（MultiLock，同时获取多个锁）等。\n\n对于Redis集群场景下的锁安全性问题，Redis作者提出了RedLock算法：在N个独立Redis实例上同时加锁，超过半数成功且总耗时小于过期时间才算成功。不过Martin Kleppmann对RedLock的安全性提出过质疑，认为在NPC（网络延迟、进程暂停、时钟漂移）情况下仍不够安全。如果对一致性要求极高，可以考虑使用ZooKeeper实现分布式锁。",
+    "key_points": [
+      "基本实现：SET NX EX + Lua脚本释放",
+      "unique_value防止误删的重要性",
+      "看门狗机制的工作原理和续期策略",
+      "宕机后锁的自动释放",
+      "RedLock算法和其争议"
+    ],
+    "common_mistakes": [
+      "释放锁不用Lua脚本保证原子性",
+      "不知道锁过期时间的问题和看门狗解决方案",
+      "不了解可重入锁的实现",
+      "对RedLock的争议不了解"
+    ]
+  },
+  {
+    "question": "SpringBoot的自动配置原理是什么？如何自定义Starter？",
+    "category": "Spring/SpringBoot",
+    "excellent_answer": "SpringBoot自动配置的核心在于@SpringBootApplication注解，它是一个组合注解，其中@EnableAutoConfiguration是关键。\n\n@EnableAutoConfiguration通过@Import导入了AutoConfigurationImportSelector类。这个类的selectImports方法会调用SpringFactoriesLoader.loadFactoryNames()，从类路径下所有jar包的META-INF/spring.factories文件中加载EnableAutoConfiguration对应的自动配置类全限定名列表。SpringBoot 2.7之后改为读取META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports文件。\n\n加载后并不是所有配置类都会生效，而是通过条件注解进行过滤：\n- @ConditionalOnClass：类路径下有指定类时才生效\n- @ConditionalOnMissingBean：容器中没有指定Bean时才生效\n- @ConditionalOnProperty：配置属性满足条件时才生效\n\n以DataSourceAutoConfiguration为例：它通过@ConditionalOnClass({DataSource.class})判断类路径下有DataSource类（引入了数据库依赖），然后通过@ConditionalOnMissingBean判断用户没有自定义DataSource Bean，才会自动创建默认的数据源。这就是为什么引入spring-boot-starter-jdbc就能自动配置数据源的原理。\n\n自定义Starter的步骤：\n1. 创建autoconfigure模块：编写自动配置类（@Configuration），使用@Conditional条件注解控制生效条件。创建@ConfigurationProperties类绑定配置属性。在META-INF/spring.factories中注册配置类。\n2. 创建starter模块：只包含pom依赖，引入autoconfigure模块和必要的第三方依赖。\n3. 命名规范：官方starter命名为spring-boot-starter-xxx，自定义starter命名为xxx-spring-boot-starter。\n\n用户只需引入starter的依赖，就能自动获得相关功能的配置，同时可以通过application.yml覆盖默认配置。",
+    "key_points": [
+      "@EnableAutoConfiguration的工作流程",
+      "spring.factories的作用（2.7+的新方式）",
+      "条件注解的过滤机制",
+      "自定义Starter的完整步骤",
+      "命名规范：官方 vs 自定义"
+    ],
+    "common_mistakes": [
+      "说不清自动配置的加载流程",
+      "不知道条件注解的过滤作用",
+      "不了解spring.factories文件",
+      "不知道自定义Starter的命名规范"
+    ]
+  }
+]

@@ -1,0 +1,49 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+*.egg
+.venv/
+venv/
+env/
+
+# Database
+*.db
+*.sqlite3
+
+# FAISS index
+*.faiss
+*.pkl
+
+# Node
+node_modules/
+frontend/node_modules/
+
+# Build
+frontend/dist/
+*.tsbuildinfo
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Environment
+.env
+.env.local
+
+# Audio files
+*.wav
+*.mp3
+*.webm
+uploads/
+
+# Logs
+*.log

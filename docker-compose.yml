@@ -1,0 +1,57 @@
+version: '3.8'
+
+services:
+  # Ollama 大模型服务
+  ollama:
+    image: ollama/ollama:latest
+    container_name: smart-interview-ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    # 如果有 NVIDIA GPU，取消下面注释
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: 1
+    #           capabilities: [gpu]
+    restart: unless-stopped
+
+  # FastAPI 后端服务
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: smart-interview-backend
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./knowledge_base:/app/knowledge_base
+      - backend_data:/app/data
+    environment:
+      - DATABASE_URL=sqlite+aiosqlite:///./data/smart_interview.db
+      - LLM_BASE_URL=http://ollama:11434/v1
+      - LLM_MODEL=qwen2.5:7b
+      - LLM_API_KEY=ollama
+      - KNOWLEDGE_BASE_PATH=/app/knowledge_base
+    depends_on:
+      - ollama
+    restart: unless-stopped
+
+  # React 前端服务
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: smart-interview-frontend
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+volumes:
+  ollama_data:
+  backend_data:

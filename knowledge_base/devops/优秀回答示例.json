@@ -1,0 +1,138 @@
+[
+  {
+    "question": "请描述Docker容器和虚拟机的本质区别，以及Docker的核心原理。",
+    "category": "Docker/K8s",
+    "excellent_answer": "Docker容器和虚拟机的本质区别在于虚拟化的层级。虚拟机通过Hypervisor虚拟化硬件，每个VM运行完整的操作系统内核，隔离性强但资源开销大（GB级别内存、分钟级启动）。容器则共享宿主机的Linux内核，通过内核特性实现轻量级隔离（MB级别内存、秒级启动）。\n\nDocker的核心依赖三个Linux内核技术：\n\n第一，Namespace实现资源隔离。Linux提供六种Namespace：PID（进程ID隔离，容器内PID从1开始）、Network（独立网络栈，每个容器有独立IP和端口空间）、Mount（文件系统隔离）、UTS（主机名隔离）、IPC（进程间通信隔离）、User（用户ID隔离）。\n\n第二，Cgroups实现资源限制。通过Cgroups可以限制容器的CPU使用量（如--cpus=2限制使用2个核心）、内存上限（--memory=512m）、磁盘IO带宽等，防止单个容器耗尽宿主机资源。\n\n第三，UnionFS实现分层镜像。Docker使用overlay2存储驱动，镜像由多个只读层叠加而成（如基础OS层、依赖安装层、应用层），容器运行时在顶部添加一个可写层。这种Copy-on-Write机制使得多个容器可以共享底层镜像层，大幅节省磁盘空间。\n\n在实际工作中，我们将一个Java微服务从VM部署迁移到Docker后，单台服务器的应用密度从3个提升到20个，资源利用率从15%提升到60%，部署时间从15分钟缩短到30秒。但也要注意容器的隔离性不如VM，安全敏感场景需要额外加固（如使用gVisor/Kata Containers增强隔离）。",
+    "key_points": [
+      "从内核级别准确解释Namespace、Cgroups、UnionFS三大核心技术",
+      "清晰对比容器与虚拟机的优缺点",
+      "结合实际项目给出容器化带来的量化收益",
+      "客观提出容器的局限性和增强方案"
+    ],
+    "common_mistakes": [
+      "只知道容器更轻量但说不清原理",
+      "混淆Namespace的种类和各自隔离的资源",
+      "忽略容器隔离性弱于虚拟机这一重要区别",
+      "无法给出实际的容器化收益数据"
+    ]
+  },
+  {
+    "question": "请描述你经历的一次严重线上故障及其处理过程。",
+    "category": "故障处理",
+    "excellent_answer": "去年双十一前夕，我们的电商平台在晚高峰突然出现大面积接口超时，用户无法完成下单。以下是完整的处理过程：\n\n发现阶段（20:15）：Prometheus告警显示API网关的P99响应时间从200ms飙升到15秒，Grafana仪表盘显示订单服务的HTTP 5xx错误率超过30%。同时客服反馈大量用户投诉。我立即启动了P0故障应急响应流程，拉起War Room。\n\n定位阶段（20:15-20:35）：首先检查基础设施层：Prometheus显示所有Node的CPU、内存、磁盘正常。然后检查应用层：订单服务的Pod日志大量报Connection Timeout，指向MySQL数据库连接超时。接着检查数据库层：MySQL的Grafana面板显示活跃连接数打满（达到最大连接数500），slow query日志中发现一条全表扫描SQL（缺少索引的查询，耗时12秒），该SQL是当天下午新上线的营销活动功能引入的。\n\n恢复阶段（20:35-20:45）：短期止血：先kill掉MySQL中堆积的慢查询会话（`SHOW PROCESSLIST` → `KILL thread_id`），释放连接资源。然后通过K8s将订单服务副本从5个扩容到15个（增加数据库连接池总量）。同时联系开发紧急添加缺失的索引：`ALTER TABLE promotions ADD INDEX idx_user_time (user_id, create_time)`。索引添加后该SQL执行时间从12秒降到5ms。20:45服务完全恢复正常。\n\n复盘改进：第一，建立上线前SQL审核机制，所有涉及数据库的变更必须经过DBA审核执行计划。第二，为MySQL配置慢查询实时告警（超过1秒的SQL自动告警）。第三，数据库连接池增加熔断机制，连接超时后快速失败而非无限等待。第四，制定应急手册（RunBook），明确各类故障的排查步骤和恢复操作。\n\n故障总时长30分钟，影响用户约2万人，直接订单损失约15万元。此后半年内未再发生同类故障。",
+    "key_points": [
+      "按时间线清晰描述发现、定位、恢复的完整过程",
+      "排查思路系统化：从基础设施到应用到数据库逐层排查",
+      "同时做短期止血和根因修复",
+      "复盘有具体可落地的改进措施"
+    ],
+    "common_mistakes": [
+      "描述混乱没有时间线和逻辑顺序",
+      "只说恢复操作不说定位过程",
+      "缺乏故障后的复盘和改进措施",
+      "无法量化故障的影响范围和时长"
+    ]
+  },
+  {
+    "question": "你在项目中是如何设计CI/CD流水线的？请详细描述。",
+    "category": "CI/CD",
+    "excellent_answer": "我为团队设计了一套基于GitLab CI + ArgoCD的完整CI/CD流水线，遵循GitOps理念。整体分为CI（持续集成）和CD（持续部署）两大部分：\n\nCI部分（GitLab CI）包含以下阶段：\n\n1. 代码质量阶段：并行执行SonarQube静态分析（质量门禁：无新增阻断/严重问题、覆盖率≥80%）和安全扫描（Trivy扫描依赖漏洞）。\n\n2. 测试阶段：并行执行单元测试（JUnit，通过率100%）和集成测试（TestContainers启动依赖服务做真实集成测试）。测试报告自动发布到MR评论区。\n\n3. 构建阶段：多阶段Dockerfile构建镜像，使用Kaniko在K8s中无特权构建。镜像Tag使用Git SHA确保唯一性和可追溯性。构建缓存通过Registry cache提速（构建时间从8分钟优化到2分钟）。镜像推送到Harbor私有仓库。\n\n4. 部署配置更新：CI自动更新K8s部署清单仓库（GitOps Repo）中的镜像Tag，触发ArgoCD同步。\n\nCD部分（ArgoCD）：\n\nArgoCD持续监控GitOps仓库的变更，自动将K8s集群状态同步到仓库中的声明式配置。发布策略采用金丝雀发布（Argo Rollouts），先将5%流量导向新版本，观察10分钟内的错误率和延迟指标，通过后自动逐步扩大到25%、50%、100%。如果指标异常自动回滚。\n\n环境管理：开发环境（dev分支自动部署）、测试环境（MR自动部署临时环境，MR关闭自动销毁）、预生产环境（main分支自动部署）、生产环境（需要手动批准+金丝雀验证）。\n\n效果：发布频率从每月2次提升到每天3-5次，部署失败率从15%降到2%，回滚时间从30分钟缩短到2分钟（git revert即可），MTTR从1小时降到10分钟。",
+    "key_points": [
+      "CI和CD分离，职责清晰",
+      "每个阶段有明确的通过标准和质量门禁",
+      "采用GitOps理念，Git仓库作为唯一事实来源",
+      "有具体的效率提升和质量改善数据"
+    ],
+    "common_mistakes": [
+      "CI/CD流水线缺少质量门禁直接部署",
+      "没有环境管理策略，所有环境用同一套流程",
+      "缺乏自动化回滚机制",
+      "无法量化CI/CD带来的效率提升"
+    ]
+  },
+  {
+    "question": "请描述你是如何做Kubernetes集群的资源管理和成本优化的。",
+    "category": "Docker/K8s",
+    "excellent_answer": "在我管理的生产K8s集群（50个Worker Node，运行200+微服务）中，我通过以下方案实现资源管理和成本优化：\n\n第一，资源请求和限制规范化。推行所有Deployment必须设置requests和limits。requests用于调度决策，根据实际监控数据（Prometheus 7天P95使用率）设置，避免过度申请。limits设为requests的1.5-2倍，防止突发流量时被OOMKill。建立了ResourceQuota和LimitRange在Namespace级别做资源配额管理。\n\n第二，HPA自动弹性伸缩。为所有核心服务配置了HPA（Horizontal Pod Autoscaler），基于CPU利用率（目标70%）和自定义指标（如QPS、队列长度）自动扩缩容。非核心服务在低峰期（凌晨）通过CronJob缩容到最小副本数，早高峰前自动扩容。\n\n第三，节点资源优化。使用Cluster Autoscaler根据Pod调度需求自动增减Node数量。引入Spot/抢占式实例运行非关键工作负载（如CI构建、数据处理Job），成本降低60%-70%。使用Taint+Toleration将GPU工作负载调度到GPU节点，避免资源浪费。\n\n第四，右型化（Right-sizing）。部署了Kubernetes VPA（Vertical Pod Autoscaler）的recommendation模式，定期分析各服务实际的CPU/内存使用情况，生成优化建议报告。每月做一次右型化Review，调整过度申请或不足的资源配置。\n\n第五，成本可视化。部署了Kubecost做成本分摊，按Namespace/Team/Service维度展示资源消耗和费用。每月输出成本报告给各团队负责人，推动资源浪费的治理。\n\n综合效果：集群整体资源利用率从25%提升到65%，月度云资源费用从50万降低到28万（节省44%），同时服务的可用性从99.9%提升到99.95%（因为弹性伸缩更好地应对了流量波动）。",
+    "key_points": [
+      "从资源规范、弹性伸缩、节点优化、右型化、成本可视化五个维度系统性优化",
+      "使用了多种K8s原生和生态工具",
+      "Spot实例的合理使用展示了成本优化意识",
+      "有显著的量化优化成果"
+    ],
+    "common_mistakes": [
+      "不设置requests和limits导致资源争抢",
+      "只做横向扩缩不做纵向资源优化",
+      "忽略成本可视化和团队级别的成本分摊",
+      "不了解Spot实例等降本手段"
+    ]
+  },
+  {
+    "question": "Linux服务器出现CPU使用率持续100%，你的排查思路是什么？",
+    "category": "Linux",
+    "excellent_answer": "CPU 100%的排查我会按照以下步骤系统性进行：\n\n第一步，确认整体状况。执行`top`命令，查看load average（1/5/15分钟负载），确认是否真的过载（负载>CPU核心数）。查看CPU使用率的构成：%us（用户态，应用程序）、%sy（内核态，系统调用）、%wa（IO等待）、%si（软中断）。不同构成指向不同的问题方向。\n\n第二步，如果%us高（应用层面）。top按CPU排序找到消耗最高的进程PID。如果是Java应用：`top -Hp PID`找到高CPU的线程TID → `printf '%x' TID`转为16进制 → `jstack PID | grep -A 20 'nid=0x线程ID'`查看线程堆栈，通常能看到是死循环、频繁GC还是CPU密集运算。如果是Python/Go等应用，使用对应的profiling工具（py-spy、pprof）。\n\n第三步，如果%sy高（内核层面）。使用`perf top`查看内核热点函数。常见原因：大量系统调用（如频繁的文件IO、网络IO）、内核锁竞争。用`strace -p PID -c`统计进程的系统调用分布。\n\n第四步，如果%wa高（IO等待）。说明CPU在等待磁盘IO。`iostat -x 1`查看磁盘IO状况（%util接近100%说明磁盘饱和），`iotop`找到高IO的进程。常见原因：大量日志写入、数据库频繁读写、swap频繁交换。\n\n第五步，如果%si高（中断）。`cat /proc/interrupts`查看中断分布，可能是网卡中断（高网络流量），可以考虑开启网卡多队列或RPS/RFS优化中断分布。\n\n在实际案例中，我曾遇到一台服务器CPU持续100%，排查发现是一个Java应用的%us占95%。通过jstack发现线程都阻塞在GC上，进一步用`jmap -heap PID`发现老年代占满。查看GC日志确认是Full GC频繁触发。根因是一个缓存没有设置过期策略导致内存泄漏。修复：增加LRU淘汰策略，同时将JVM堆内存从2G调整到4G，问题解决。",
+    "key_points": [
+      "按CPU使用率构成（us/sy/wa/si）分类排查，思路清晰",
+      "每种场景都给出具体的排查命令和工具",
+      "Java应用的线程级CPU分析流程完整",
+      "结合实际案例展示完整的排查和解决过程"
+    ],
+    "common_mistakes": [
+      "不区分CPU使用率的构成直接看进程",
+      "只知道top命令不知道进一步深入分析",
+      "不会做线程级的CPU分析",
+      "缺乏实际排查案例"
+    ]
+  },
+  {
+    "question": "请描述你是如何设计Prometheus告警规则的，以及如何避免告警风暴？",
+    "category": "监控日志",
+    "excellent_answer": "我在项目中设计了一套分层的告警体系，覆盖基础设施、应用服务和业务指标三个层面：\n\n基础设施层告警：Node CPU>85%持续5分钟、内存使用率>90%持续3分钟、磁盘使用率>85%、磁盘IO util>95%持续3分钟。这些是通用规则，通过node_exporter采集。\n\n应用服务层告警：HTTP 5xx错误率>1%持续3分钟、P99响应时间>2秒持续5分钟、Pod重启次数>3次/10分钟、Pod处于CrashLoopBackOff状态。通过应用内置的metrics端点和kube-state-metrics采集。\n\n业务指标层告警：订单创建量同比下降超过50%、支付成功率低于95%、核心业务接口不可用。通过自定义业务指标采集。\n\n告警分级和通知策略：P0（服务不可用）→ 电话+短信+企微，要求5分钟响应。P1（功能受损）→ 短信+企微，要求15分钟响应。P2（性能下降）→ 企微通知，要求1小时内处理。P3（预警类）→ 汇总到日报。\n\n避免告警风暴的关键措施：\n\n第一，合理的for持续时间。不是一触发就告警，而是持续一段时间确认非瞬间抖动。如CPU>85%要持续5分钟才告警，避免偶发毛刺触发。\n\n第二，Alertmanager的group_by分组。将同一服务的多个实例告警聚合为一条，而非每个实例发一条。配置group_wait=30s（等待30秒收集同组告警）、group_interval=5m（同组告警间隔5分钟）、repeat_interval=4h（未恢复的告警4小时再次提醒）。\n\n第三，inhibit_rules告警抑制。当Node宕机时，抑制该Node上所有Pod的告警（因为根因是Node故障，Pod告警是附带现象）。当网络不可达时抑制该节点的所有服务告警。\n\n第四，定期Review告警规则。每月统计告警数量和处理率，对连续30天未触发的规则评估是否需要调整阈值，对频繁触发但不需要处理的规则（噪音告警）进行优化或删除。我们将告警的信噪比从初期的40%提升到了90%以上。",
+    "key_points": [
+      "告警覆盖基础设施、应用、业务三个层面",
+      "分级通知策略明确各级别的响应要求",
+      "从持续时间、分组聚合、告警抑制三个维度避免告警风暴",
+      "有告警规则的定期Review和优化机制"
+    ],
+    "common_mistakes": [
+      "告警只覆盖基础设施不覆盖应用和业务指标",
+      "所有告警同一级别同一通知方式",
+      "不使用Alertmanager的分组和抑制功能",
+      "告警规则设置后不再维护和优化"
+    ]
+  },
+  {
+    "question": "请解释Kubernetes中Service的实现原理以及不同类型的适用场景。",
+    "category": "Docker/K8s",
+    "excellent_answer": "Kubernetes Service是对一组Pod的抽象，提供稳定的网络访问入口和负载均衡。它解决了Pod IP动态变化（Pod重建IP会变）和负载分发的问题。\n\n实现原理：Service创建后，kube-proxy在每个Node上维护网络规则。kube-proxy有三种模式：\n\nuserspace模式（已废弃）：流量先到kube-proxy进程再转发，性能差。\n\niptables模式（默认）：kube-proxy将Service的路由规则写入iptables，内核直接做流量转发，不经过用户态。但规则数量多时（数千Service）iptables规则链很长，更新和匹配性能下降。\n\nipvs模式（推荐大规模集群）：使用Linux IPVS（IP Virtual Server）内核模块，基于哈希表查找，性能O(1)不随Service数量线性增长。支持更多负载均衡算法（rr/lc/wrr/wlc/sh等）。\n\n四种Service类型及适用场景：\n\nClusterIP（默认）：只在集群内部可访问，分配一个虚拟IP。适用于微服务间的内部调用。DNS解析：service-name.namespace.svc.cluster.local。\n\nNodePort：在ClusterIP基础上，在每个Node上开放一个固定端口（30000-32767），外部通过NodeIP:NodePort访问。适用于开发测试环境或没有LoadBalancer的场景。缺点：端口范围有限、直接暴露Node。\n\nLoadBalancer：在NodePort基础上，由云平台创建一个外部负载均衡器（如AWS ALB/NLB、阿里云SLB），将流量分发到各Node的NodePort。适用于生产环境对外暴露服务。\n\nExternalName：不做代理，仅返回一个CNAME记录指向外部域名。适用于集群内服务访问集群外的服务（如外部数据库、第三方API），实现服务名统一管理。\n\n在我们的项目中，内部微服务间调用全部使用ClusterIP，配合Istio Service Mesh做更精细的流量管理（金丝雀路由、熔断、重试）。对外API通过Ingress（NGINX Ingress Controller）暴露，背后是ClusterIP Service。Ingress Controller本身通过LoadBalancer类型的Service暴露到公网。这样的架构清晰且安全——只有Ingress Controller直接面向公网，内部服务都在集群网络内。",
+    "key_points": [
+      "从实现原理层面解释kube-proxy的三种模式及其性能特点",
+      "准确描述四种Service类型的技术细节和适用场景",
+      "结合实际架构说明不同类型的配合使用",
+      "提到了Service Mesh等进阶方案"
+    ],
+    "common_mistakes": [
+      "只知道Service类型不了解底层实现原理",
+      "不清楚iptables和ipvs模式的区别和适用场景",
+      "无法解释DNS服务发现机制",
+      "缺乏实际项目中的架构设计经验"
+    ]
+  },
+  {
+    "question": "你是如何用Ansible实现服务器批量配置管理的？请结合实际案例说明。",
+    "category": "自动化运维",
+    "excellent_answer": "在我管理的环境中，有80+台服务器分布在三个数据中心，涉及Web服务器、应用服务器、数据库服务器等多种角色。我使用Ansible实现了全面的配置管理自动化。\n\n整体架构设计：采用Ansible的Role-based组织结构。将配置按功能拆分为多个Role：common（通用基线配置）、nginx、java-app、mysql、redis、monitoring（监控Agent安装配置）。使用Inventory按环境分组（production/staging/dev），每个环境的差异通过group_vars和host_vars管理。\n\n具体案例——新服务器初始化标准化：当新服务器上架后，执行一个site.yml就能完成全部初始化配置：\n\ncommon角色：创建运维用户和SSH密钥分发、配置时区和NTP时间同步、安装基础工具包（vim/curl/htop/nettools）、配置sysctl内核参数优化（文件描述符限制、TCP参数调优）、配置iptables防火墙规则、安装并配置node_exporter（Prometheus监控）和filebeat（日志采集）。\n\n应用Role：根据服务器角色标签自动应用对应配置。如标记为webserver的服务器自动执行nginx角色（安装Nginx、下发证书和配置模板、配置日志轮转）。\n\n安全加固：禁用root远程登录、禁用密码认证（仅密钥）、修改SSH端口、安装fail2ban、配置auditd审计日志。\n\n敏感数据管理：所有密码和密钥使用Ansible Vault加密。Vault密码通过环境变量注入CI/CD流水线，人工不接触明文密码。\n\n日常运维自动化：编写了playbook做批量操作——安全补丁批量更新（按灰度策略分批执行）、证书批量续期和分发、配置变更的批量下发和验证。每次变更都通过Git PR审核后由Jenkins执行Ansible playbook，实现了变更可追溯。\n\n效果：新服务器从裸机到可投产从原来的4小时手工操作缩短到20分钟自动化完成。配置一致性从60%（人工操作难免遗漏差异）提升到100%。安全基线达标率从70%提升到100%。",
+    "key_points": [
+      "Role-based的组织结构清晰规范",
+      "覆盖初始化、应用配置、安全加固等完整场景",
+      "使用Vault管理敏感数据，安全意识强",
+      "与CI/CD集成实现变更可追溯"
+    ],
+    "common_mistakes": [
+      "Ansible代码没有组织结构，全部堆在一个playbook里",
+      "敏感数据明文写在变量文件中",
+      "缺乏幂等性保证导致重复执行出问题",
+      "手动执行Ansible而非通过CI/CD集成"
+    ]
+  }
+]

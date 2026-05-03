@@ -1,0 +1,202 @@
+{
+  "report_template": {
+    "version": "1.0",
+    "report_title": "AI模拟面试评估报告",
+    "generated_at": "",
+    "candidate_info": {
+      "name": "",
+      "target_position": "",
+      "experience_years": 0,
+      "interview_duration_minutes": 0,
+      "interview_date": "",
+      "interview_type": "AI模拟面试"
+    },
+    "overall_assessment": {
+      "total_score": 0,
+      "grade": "",
+      "grade_description": "",
+      "recommendation": "",
+      "one_line_summary": ""
+    },
+    "dimension_scores": [
+      {
+        "dimension": "技术基础",
+        "dimension_en": "technical_foundation",
+        "score": 0,
+        "weight": 0,
+        "weighted_score": 0,
+        "level": "",
+        "evaluation": "",
+        "strengths": [],
+        "weaknesses": [],
+        "key_questions": [
+          {
+            "question": "",
+            "score": 0,
+            "comment": ""
+          }
+        ]
+      },
+      {
+        "dimension": "项目经验",
+        "dimension_en": "project_experience",
+        "score": 0,
+        "weight": 0,
+        "weighted_score": 0,
+        "level": "",
+        "evaluation": "",
+        "strengths": [],
+        "weaknesses": [],
+        "key_questions": []
+      },
+      {
+        "dimension": "问题解决能力",
+        "dimension_en": "problem_solving",
+        "score": 0,
+        "weight": 0,
+        "weighted_score": 0,
+        "level": "",
+        "evaluation": "",
+        "strengths": [],
+        "weaknesses": [],
+        "key_questions": []
+      },
+      {
+        "dimension": "代码能力",
+        "dimension_en": "coding_ability",
+        "score": 0,
+        "weight": 0,
+        "weighted_score": 0,
+        "level": "",
+        "evaluation": "",
+        "strengths": [],
+        "weaknesses": [],
+        "key_questions": []
+      },
+      {
+        "dimension": "系统设计",
+        "dimension_en": "system_design",
+        "score": 0,
+        "weight": 0,
+        "weighted_score": 0,
+        "level": "",
+        "evaluation": "",
+        "strengths": [],
+        "weaknesses": [],
+        "key_questions": []
+      },
+      {
+        "dimension": "沟通表达",
+        "dimension_en": "communication",
+        "score": 0,
+        "weight": 0,
+        "weighted_score": 0,
+        "level": "",
+        "evaluation": "",
+        "strengths": [],
+        "weaknesses": [],
+        "key_questions": []
+      },
+      {
+        "dimension": "学习能力与潜力",
+        "dimension_en": "learning_potential",
+        "score": 0,
+        "weight": 0,
+        "weighted_score": 0,
+        "level": "",
+        "evaluation": "",
+        "strengths": [],
+        "weaknesses": [],
+        "key_questions": []
+      }
+    ],
+    "radar_chart_data": {
+      "labels": ["技术基础", "项目经验", "问题解决", "代码能力", "系统设计", "沟通表达", "学习潜力"],
+      "scores": [0, 0, 0, 0, 0, 0, 0],
+      "max_score": 100
+    },
+    "interview_detail": {
+      "questions_asked": 0,
+      "questions_answered_well": 0,
+      "questions_answered_poorly": 0,
+      "average_answer_depth": "",
+      "question_records": [
+        {
+          "order": 1,
+          "question": "",
+          "category": "",
+          "difficulty": "",
+          "candidate_answer_summary": "",
+          "score": 0,
+          "key_points_hit": [],
+          "key_points_missed": [],
+          "follow_up_questions": [],
+          "comment": ""
+        }
+      ]
+    },
+    "strengths_summary": {
+      "title": "突出优势",
+      "items": []
+    },
+    "improvement_areas": {
+      "title": "待改进方面",
+      "items": [
+        {
+          "area": "",
+          "current_level": "",
+          "suggestion": "",
+          "recommended_resources": []
+        }
+      ]
+    },
+    "knowledge_gap_analysis": {
+      "title": "知识薄弱点分析",
+      "gaps": [
+        {
+          "topic": "",
+          "importance": "",
+          "current_mastery": "",
+          "study_suggestion": ""
+        }
+      ]
+    },
+    "learning_roadmap": {
+      "title": "学习提升路线建议",
+      "short_term": {
+        "period": "1-2周",
+        "goals": [],
+        "actions": []
+      },
+      "medium_term": {
+        "period": "1-3个月",
+        "goals": [],
+        "actions": []
+      },
+      "long_term": {
+        "period": "3-6个月",
+        "goals": [],
+        "actions": []
+      }
+    },
+    "comparison_with_benchmark": {
+      "title": "与岗位标准对比",
+      "position_level": "",
+      "benchmark_score": 0,
+      "candidate_score": 0,
+      "gap_analysis": ""
+    },
+    "final_comments": {
+      "overall_impression": "",
+      "hiring_recommendation": "",
+      "additional_notes": ""
+    },
+    "metadata": {
+      "ai_model_version": "",
+      "knowledge_base_version": "",
+      "scoring_standard_version": "1.0",
+      "report_generated_at": "",
+      "disclaimer": "本报告由AI系统自动生成，仅供模拟面试练习参考，不代表真实面试评估结果。"
+    }
+  }
+}
